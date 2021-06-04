@@ -1,8 +1,8 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from numpy.core import multiarray
-from numpy.random import default_rng
-from mpl_toolkits import mplot3d
+import matplotlib.pyplot as plt  # noqa F401
+from numpy.core import multiarray  # noqa F401
+from numpy.random import default_rng  # noqa F401
+from mpl_toolkits import mplot3d  # noqa F401
 
 
 # real underlying Lorenz 63 model
@@ -72,7 +72,7 @@ def tent_fn(a, gi):
 
 
 # df for lorenz 63 reference
-df = lambda last_z, last_g: np.array(f(last_z) + g(a, last_g))
+df = lambda last_z, last_g: np.array(f(last_z) + g(a, last_g))  # noqa E731
 
 
 def forward_e(df, dt, *last_points):
