@@ -213,6 +213,9 @@ def x_obs(N_obs, dt_out, zref):
         time step for observations
     zref: fn
         fn for coordinates of the real surrogate process
+
+    Return: N_obs len list
+        list of observations
     """
     c = 20
     err_ls = errorsum(c, N_obs)
@@ -240,34 +243,56 @@ dt_sim = 0.001
 
 
 def stochastic_g():
+    """
+    Calculate randomised g
+    -------
+    Return: 3d np.array of random samples
+    """
     a = 1/np.sqrt(dt_sim)
     sigma = np.sqrt(0.0838)
-    rng = default_rng()
-    vals = rng.normal(0, sigma, 3)
+    vals = np.random.normal(0, sigma, 3)
     return a * vals
+# print(stochastic_g())
 
 
 def sde_df(last_z):
+    """
+    df for stochastic difference eqn
+    --------
+    Parameters:
+    last_z: 3d array
+        coordinate of the last position
+
+    Return: 3d np.array
+        calculated df for the next forward euler
+    """
     return f(last_z) + stochastic_g()
+# print(sde_df(ICs))
 
 
-def sim_z(t, dt_sim):
+def sim_z(n, ICs):
+    """
+    Propagate z n steps
+    ----------
+    Parameters:
+    n: int
+        number of steps to propagate
+    ICs: 3d array
+        initial conditions to propagate from
+
+    Return: n+1 array
+        list of z predicted from initial conditions till nth
+    """
     out = [ICs]
-    for i in range(int(t/dt_sim)):
+    for i in range(n):
         out.append(forward_e(sde_df, dt_sim, out[-1]))
     return out
+# print(len(sim_z(5, ICs)))
 
-
-def sim_z_onestep(dt_sim, dt_out, ICs):
-    steps = 5 # dt_out/dt_sim
-    out = [ICs]
-    for i in range(steps):
-        out.append(forward_e(sde_df, dt_sim, out[-1]))
-    return out[-1]
 
 """
-t = 10
-zs = sim_z(t, dt_sim)
+t = int(20/0.001)
+zs = sim_z(t, ICs)
 x_sim = first_comp(zs)
 t_list = np.arange(0, t+dt_sim, dt_sim)
 plt.figure()
@@ -281,17 +306,24 @@ ax.plot(z1, z2, z3)
 plt.show()
 """
 
-
 # SIR implementation
-
-M = 100 # number of particles
-N_obs = 200 # number of observations
+# Initialise values
+M = 100  # number of particles
+N_obs = 200  # number of observations
 
 
 def likelihoodfn(current_obs, current_forecast):
     """
-    current_obs: x val for the current obs
-    current_forecast: predicted current position
+    calculate pi_y for a specific particle given the observed and forecast
+    ---------
+    Parameters:
+    current_obs: float
+        x val for the current obs
+    current_forecast: 3d array
+        predicted current coordinates
+
+    Return: float
+        likelihood
     """
     R = 1 / 15
     p = -0.5 / R * pow(current_obs - current_forecast[0], 2)
@@ -299,90 +331,204 @@ def likelihoodfn(current_obs, current_forecast):
 
 
 def init_ensemble(M, mu, sig):
-    rng = default_rng()
+    """
+    Give an initial ensemble from normal dist N(mu, sig^2)
+    ---------
+    Parameters:
+    M: int
+        ensemble sample size
+    mu: 3d array
+        sampling mean for each axis
+    sig: float
+        standard dev for sampling
+
+    Return: M len array of 3d coords
+        list of coords of ensemble of initial particles
+    """
     vals = []
     for mui in mu:
-        vals.append(rng.normal(mui, sig, M))
+        vals.append(np.random.normal(mui, sig, M))
     coords = [[vals[0][i], vals[1][i], vals[2][i]] for i in range(M)]
     return coords
+# print(init_ensemble(4, ICs, 0.1))
 
 
 def M_eff(w):
     """
-    w: weights array
+    calc the effective sample size
+    ----------
+    Parameters:
+    w: M len array
+        weights array
+
+    Return: float
+        effective sample size
     """
-    return 1/ sum(np.array(w) ** 2)
+    return 1 / sum(np.array(w) ** 2)
 
 
 def next_w(current_w, current_obs, current_fore):
     """
-    current_w: old weights
-    current_obs: newest measured position
+    calc the next set of weights
+    ---------
+    Parameters:
+    current_w: M len array
+        old weights
+    current_obs: float (as we only see x coord)
+        newest observed position
     current_fore: M length array of 3d coords, same len as current_w
+        forecasts of each particle
+
+    Return: M len array
+        new weights
     """
-    M = len(current_w)
+    # M = len(current_w)
     likelies = []
-    for forecasts in current_fore:
-        likelies.append(likelihoodfn(current_obs, forecasts))
+    for forecast in current_fore:
+        likelies.append(likelihoodfn(current_obs, forecast))
     probs = np.array(likelies) * np.array(current_w)
     denom = sum(probs)
+    # print("denom", denom)
     return probs / denom
 
 
 def resampling(M, current_w, old_ensemble):
+    """
+    sample new ensemble from the old ensemble using weights as probabilities
+    ----------
+    Parameters:
+    M: int
+        ensemble size
+    current_w: M len array
+        current weights
+    old_ensemble: M len array of 3d coords
+        ensemble to be sampled from
+
+    Return: M len array of 3d coords
+        new ensemble with repetitions
+    """
     sampling = np.random.multinomial(M, current_w)
     new_ensemble = []
-    print("resampling..")
+    # print("tot weights", sum(weights))
+    # print("resampling..")
     for idx, amnt in enumerate(sampling):
         if amnt:
             new_ensemble += [old_ensemble[idx] for i in range(amnt)]
+    # print(new_ensemble)
     return new_ensemble
 
 
-# SIR proper
+# SIR run
+def SIR(M):
+    observations = x_obs(N_obs, dt_out, zref)
 
-observations = x_obs(N_obs, dt_out, zref)
+    initial_samples = init_ensemble(M, ICs, 0.1)
+    initial_w = [1/M for i in range(M)]
 
-initial_samples = init_ensemble(M, ICs, 0.1)
-initial_w = [1/M for i in range(M)]
+    weights = initial_w.copy()
+    current_ensemble = initial_samples.copy()
+    ensemble_paths = [[i] for i in initial_samples]
+    # ensemble paths will look as below
+    # ensemble_paths = [
+    #   [[1st coord of path], [2nd coord], ..],  # particle one
+    #   ...
+    #   [[1st coord of path], [2nd coord], ..]  # particle M
+    # ]
+    eff_M_hist = [M_eff(weights)]  # history of effective sample size to graph
 
-weights = initial_w.copy()
-current_ensemble = initial_samples.copy()
-ensemble_paths = [[i] for i in initial_samples] 
-# ensemble paths will look as below
-# ensemble_paths = [
-#   [[1st coord of path], [2nd coord], ..],  # particle one
-#   ...
-#   [[1st coord of path], [2nd coord], ..]  # particle M
-# ]
-eff_M_hist = [M_eff(weights)] # history of effective sample size to graph
+    for observing in range(N_obs):
+
+        # propagate each point to the next observation
+        new_ens = []
+        for i in range(M):
+            new_coord = sim_z(int(dt_out/dt), current_ensemble[i])[-1]
+            new_ens.append(new_coord)
+        current_ensemble = new_ens
+
+        # add the new coords to ensemble_path
+        for path in range(M):
+            ensemble_paths[path].append(current_ensemble[path])
+
+        # new weights
+        weights = next_w(weights, observations[observing], current_ensemble)
+
+        # effective sample size
+        eff_M_hist.append(M_eff(weights))
+        # print("eff M = ", eff_M_hist[-1])
+
+        # resampling
+        if eff_M_hist[-1] < M/2:
+            # print(observing)
+            current_ensemble = resampling(M, weights, current_ensemble)
+            weights = [1/M for i in range(M)]
+
+    return eff_M_hist, ensemble_paths, observations
 
 
-for observing in range(N_obs):
+# effective sample size plot
+"""
+trial = []
+M_vals = [30, 100, 300]
+for value in M_vals:
+    trial.append(SIR(value)[0])
+print(len(trial[0]))
+print(N_obs)
+plt.figure()
+t_ls = np.linspace(0, N_obs*dt_out, len(trial[0]))
+for runs in trial:
+    plt.plot(t_ls, runs)
+plt.show()
+"""
 
-    # propagate each point to the next observation
-    new_ens = []
-    for i in range(M):
-        new_coord = sim_z_onestep(dt_sim, dt_out, current_ensemble[i])
-        new_ens.append(new_coord)
-    current_ensemble = new_ens
+"""
+plt.figure()
+ax = plt.axes(projection='3d')
+for i in ensemble_paths:
+    x = [j[0] for j in i]
+    y = [j[1] for j in i]
+    z = [j[2] for j in i]
+    ax.plot(x, y, z)
+plt.show()
+"""
 
-    # add the new coords to ensemble_path
-    for path in range(M):
-        ensemble_paths[path].append(current_ensemble[path])
 
-    # new weights
-    weights = next_w(weights, observations[observing], current_ensemble)
+# RMSE
+def mean_y(enpaths, k, axis):
+    yi_tk = [path[k][axis] for path in enpaths]
+    # print(len(yi_tk))
+    return sum(yi_tk) / len(yi_tk)
 
-    # effective sample size
-    eff_M_hist.append(M_eff(weights))
 
-    # resampling
-    if eff_M_hist[-1] < M/2:
-        current_ensemble = resampling(M, weights, current_ensemble)
-        weights = initial_w.copy()
+def RMSE(enpaths, obs, axis):
+    """
+    Parameters:
+    enpaths: list of list of coords
+        list of each ensemble paths
+    obs: list of coords
+        all observations
+    axis: 0, 1, or 2
+        x, y or z coordinate to be calculated
+    """
+    total = 0
+    for k in range(len(obs)):
+        ym = mean_y(enpaths, k, axis)
+        total += (ym - obs[k]) ** 2
+    return np.sqrt(total / len(obs))
+
+storex = []
+storey = []
+storez = []
+M_vals = [i*50 for i in range(1,7)]
+for i in M_vals:
+    useless, ep, ob = SIR(i)
+    storex.append(RMSE(ep, ob, 0))
+    #storey.append(RMSE(ep, ob, 1))
+    #storez.append(RMSE(ep, ob, 2))
 
 plt.figure()
-t_ls = np.linspace(0, N_obs*dt_out, N_obs)
-plt.plot(t_ls, eff_M_hist[1:])
+plt.plot(M_vals, storex)
+#plt.plot(M_vals, storey, '-.')
+#plt.plot(M_vals, storez, '-x')
+
 plt.show()
+#print(RMSE(ep, ob, 0))
