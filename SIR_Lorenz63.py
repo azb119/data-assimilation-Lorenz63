@@ -308,7 +308,7 @@ plt.show()
 
 # SIR implementation
 # Initialise values
-M = 100  # number of particles
+# M = 100  # number of particles
 N_obs = 200  # number of observations
 
 
@@ -481,9 +481,10 @@ plt.show()
 """
 
 """
+coords = SIR(8)[1]
 plt.figure()
 ax = plt.axes(projection='3d')
-for i in ensemble_paths:
+for i in coords:
     x = [j[0] for j in i]
     y = [j[1] for j in i]
     z = [j[2] for j in i]
@@ -515,9 +516,11 @@ def RMSE(enpaths, obs, axis):
         total += (ym - obs[k]) ** 2
     return np.sqrt(total / len(obs))
 
+
+"""
 storex = []
-storey = []
-storez = []
+# storey = []
+# storez = []
 M_vals = [i*50 for i in range(1,7)]
 for i in M_vals:
     useless, ep, ob = SIR(i)
@@ -531,4 +534,4 @@ plt.plot(M_vals, storex)
 #plt.plot(M_vals, storez, '-x')
 
 plt.show()
-#print(RMSE(ep, ob, 0))
+"""
