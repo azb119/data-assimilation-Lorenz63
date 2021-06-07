@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt  # noqa F401
-from numpy.core import multiarray  # noqa F401
+#from numpy.core import multiarray  # noqa F401
 from numpy.random import default_rng  # noqa F401
 from mpl_toolkits import mplot3d  # noqa F401
 
@@ -386,6 +386,8 @@ def next_w(current_w, current_obs, current_fore):
     likelies = []
     for forecast in current_fore:
         likelies.append(likelihoodfn(current_obs, forecast))
+    if len(likelies) == 1:
+        return np.array([1])
     probs = np.array(likelies) * np.array(current_w)
     denom = sum(probs)
     # print("denom", denom)
@@ -418,6 +420,7 @@ def resampling(M, current_w, old_ensemble):
     return new_ensemble
 
 
+# need N_obs, dt_out, M, ICs, dt, dt_sim,
 # SIR run
 def SIR(M):
     observations = x_obs(N_obs, dt_out, zref)
@@ -497,7 +500,7 @@ plt.show()
 def mean_y(enpaths, k, axis):
     yi_tk = [path[k][axis] for path in enpaths]
     # print(len(yi_tk))
-    return sum(yi_tk) / len(yi_tk)
+    return np.mean(yi_tk)
 
 
 def RMSE(enpaths, obs, axis):
@@ -506,7 +509,7 @@ def RMSE(enpaths, obs, axis):
     enpaths: list of list of coords
         list of each ensemble paths
     obs: list of coords
-        all observations
+        all observations of x coords
     axis: 0, 1, or 2
         x, y or z coordinate to be calculated
     """
@@ -517,21 +520,122 @@ def RMSE(enpaths, obs, axis):
     return np.sqrt(total / len(obs))
 
 
+def rmse(M, enpath, obs):
+    diff = np.zeros(M)
+    for i in range(M):
+        for j in range(N_obs):
+            diff[i] += abs(obs[j] - enpath[i][j][0])**2
+    rms = np.sqrt((1/M)*diff)
+    return np.mean(rms)
+
+
+def RMSE2(enpaths, obs, axis):
+    x_sim = [mean_y(enpaths, k, axis) for k in range(0, N_obs+1)]
+    return np.sqrt(np.mean(np.array(x_sim[1:] - obs) ** 2))
+
 """
-storex = []
-# storey = []
-# storez = []
-M_vals = [i*50 for i in range(1,7)]
-for i in M_vals:
-    useless, ep, ob = SIR(i)
-    storex.append(RMSE(ep, ob, 0))
-    #storey.append(RMSE(ep, ob, 1))
-    #storez.append(RMSE(ep, ob, 2))
+N_obs = 200
+plt.figure()
+for j in range(3):
+    storex = []
+    # storey = []
+    # storez = []
+    M_vals = [25] + [i*50 for i in range(1,7)]
+    for i in M_vals:
+        useless, ep, ob = SIR(i)
+        storex.append(RMSE2(ep, ob, 0))
+        #storex.append(RMSE(ep, ob, 0))
+        #storey.append(RMSE(ep, ob, 1))
+        #storez.append(RMSE(ep, ob, 2))
+
+    plt.plot(M_vals, storex, '-o')
+    #plt.plot(M_vals, storey, '-.')
+    #plt.plot(M_vals, storez, '-x')
+plt.xlabel('sample size M')
+plt.ylabel('time averaged RMSE of x coordinates')
+plt.show()
+"""
+
+
+# deterministic vs stochastic model
+def z_det(t, ICs, dt):
+    z_new = ICs
+    points = [ICs]
+    for i in range(int(t/dt)):
+        z_new = forward_e(f, dt, z_new)
+        points.append(z_new)
+    return points
+
+
+"""
+t = 6
+sto_pt = sim_z(int(t/dt_sim), ICs)
+det_pt = z_det(t, ICs, dt)
+t_pt = np.linspace(0, t, int(t/dt)+1)
 
 plt.figure()
-plt.plot(M_vals, storex)
-#plt.plot(M_vals, storey, '-.')
-#plt.plot(M_vals, storez, '-x')
-
+plt.plot(t_pt, [i[2] for i in sto_pt], 'o')
+plt.plot(t_pt, [i[2] for i in det_pt], 'x')
 plt.show()
+"""
+
+# reference vs stochastic
+
+"""
+t = 6
+sto_pt = sim_z(int(t/dt_sim), ICs)
+ref_pt = zref(t)
+t_pt = np.linspace(0, t, int(t/dt)+1)
+
+plt.figure()
+plt.plot(t_pt, [i[1] for i in sto_pt], 'o')
+plt.plot(t_pt, [i[1] for i in ref_pt], 'x')
+plt.show()
+"""
+
+# observed vs reference
+
+"""
+t = 6
+obs_pt = x_obs(int(t/0.05), dt_out, zref)
+ref_pt = zref(t)[::50]
+t_pt = np.linspace(0, t, int(t/dt)+1)[::50]
+
+plt.figure()
+plt.plot(t_pt, np.concatenate([[ICs[0]], obs_pt]), 'o')
+plt.plot(t_pt, [i[1] for i in ref_pt], 'x')
+plt.show()
+"""
+
+# observed vs stochastic
+
+"""
+t = 6
+obs_pt = x_obs(int(t/0.05), dt_out, zref)
+sto_pt = sim_z(int(t/dt_sim), ICs)[::50]
+t_pt = np.linspace(0, t, int(t/dt)+1)[::50]
+
+plt.figure()
+plt.plot(t_pt, np.concatenate([[ICs[0]], obs_pt]), 'o')
+plt.plot(t_pt, [i[0] for i in sto_pt], 'x')
+plt.show()
+"""
+
+# sim_z vs x_obs
+"""
+N_obs = 80
+useless, enpath, observe = SIR(30)
+t_list = np.linspace(0, dt_out * N_obs, N_obs + 1)
+x_sim = [mean_y(enpath, k, 0) for k in range(0, N_obs+1)]
+plt.figure()
+plt.plot(t_list[1:], observe, '-k', label = 'x_obs')
+plt.plot(t_list, x_sim, '-c', label = 'particle mean')
+#for paths in enpath:
+#   plt.plot(t_list, [i[0] for i in paths], '-c')
+plt.xlabel("time")
+plt.ylabel("x coordinates")
+plt.legend()
+plt.show()
+print('M=', 30)
+print(np.sqrt(np.mean(x_sim[1:] - observe)))
 """
