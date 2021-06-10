@@ -1,7 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt  # noqa F401
-#from numpy.core import multiarray  # noqa F401
-from numpy.random import default_rng  # noqa F401
 from mpl_toolkits import mplot3d  # noqa F401
 
 
@@ -24,19 +22,9 @@ def f(z):
     return np.array([x1, x2, x3])
 
 
-ICs = np.array([-0.587, -0.563, 16.870])
-dt = 0.001
-a = 1/np.sqrt(dt)
-g0 = np.array([
-    a * (2 ** -0.5 - 0.5),
-    a * (3 ** -0.5 - 0.5),
-    a * (5 ** -0.5 - 0.5)
-])
-
-
 def g(a, g):
     """
-    Calculate driver g for the next time step.
+    Calculate driving force g for the next time step.
     ---------
     Parameters:
     a: float
@@ -102,7 +90,7 @@ def zref(t):
     t: endpoint time
 
     Returns:
-    list of coordinates
+    list of 3d coordinates
     """
     out = [ICs]
     gs = [g0]
@@ -110,31 +98,12 @@ def zref(t):
         lastz = out[-1]
         lastg = gs[-1]
         nextz = forward_e(df, dt, lastz, lastg)
-        # print(lastg)
         out.append(nextz)
         gs.append(g(a, lastg))
     return out
 
 
-"""
-t = 10
-z = zref(t)
-fig = plt.figure()
-ax = plt.axes(projection='3d')
-z1 = [i[0] for i in z]
-z2 = [i[1] for i in z]
-z3 = [i[2] for i in z]
-ax.plot(z1, z2, z3)
-plt.show()
-"""
-
 # partial observations
-# say we have the model and zref is represented by zreal as below
-# t = 10
-# zreal = zref(t)
-# zreal is an array of 3d positions, eg. [[0,0,0], [1,2,3], [2,3,4]]
-
-
 def first_comp(z):
     """
     Take the x coordinate from list of coords
@@ -226,22 +195,20 @@ def x_obs(N_obs, dt_out, zref):
 
 
 # intiliasing
-dt_out = 0.05
-N_obs = 200
-
-"""
-trial = x_obs(N_obs, dt_out, zref)
-t = np.arange(0,dt_out*200,dt_out)
-plt.figure()
-plt.plot(t, trial, 'x')
-plt.show()
-"""
+ICs = np.array([-0.587, -0.563, 16.870])  # initial conditions
+dt = 0.001  # timestep for surrogate physical process
+a = 1/np.sqrt(dt)
+g0 = np.array([
+    a * (2 ** -0.5 - 0.5),
+    a * (3 ** -0.5 - 0.5),
+    a * (5 ** -0.5 - 0.5)
+])
+dt_out = 0.05  # time step for the observations
+N_obs = 200  # number of observations
+dt_sim = 0.001  # time step for simulation using SDE
 
 
 # stochastic difference equations
-dt_sim = 0.001
-
-
 def stochastic_g():
     """
     Calculate randomised g
@@ -252,7 +219,6 @@ def stochastic_g():
     sigma = np.sqrt(0.0838)
     vals = np.random.normal(0, sigma, 3)
     return a * vals
-# print(stochastic_g())
 
 
 def sde_df(last_z):
@@ -267,7 +233,6 @@ def sde_df(last_z):
         calculated df for the next forward euler
     """
     return f(last_z) + stochastic_g()
-# print(sde_df(ICs))
 
 
 def sim_z(n, ICs):
@@ -287,31 +252,10 @@ def sim_z(n, ICs):
     for i in range(n):
         out.append(forward_e(sde_df, dt_sim, out[-1]))
     return out
-# print(len(sim_z(5, ICs)))
 
-
-"""
-t = int(20/0.001)
-zs = sim_z(t, ICs)
-x_sim = first_comp(zs)
-t_list = np.arange(0, t+dt_sim, dt_sim)
-plt.figure()
-#plt.plot(t_list, x_sim, 'x')
-#plt.show()
-ax = plt.axes(projection='3d')
-z1 = [i[0] for i in zs]
-z2 = [i[1] for i in zs]
-z3 = [i[2] for i in zs]
-ax.plot(z1, z2, z3)
-plt.show()
-"""
 
 # SIR implementation
-# Initialise values
-# M = 100  # number of particles
-N_obs = 200  # number of observations
-
-
+# M = 300  # number of particles
 def likelihoodfn(current_obs, current_forecast):
     """
     calculate pi_y for a specific particle given the observed and forecast
@@ -350,7 +294,6 @@ def init_ensemble(M, mu, sig):
         vals.append(np.random.normal(mui, sig, M))
     coords = [[vals[0][i], vals[1][i], vals[2][i]] for i in range(M)]
     return coords
-# print(init_ensemble(4, ICs, 0.1))
 
 
 def M_eff(w):
@@ -382,7 +325,6 @@ def next_w(current_w, current_obs, current_fore):
     Return: M len array
         new weights
     """
-    # M = len(current_w)
     likelies = []
     for forecast in current_fore:
         likelies.append(likelihoodfn(current_obs, forecast))
@@ -390,7 +332,6 @@ def next_w(current_w, current_obs, current_fore):
         return np.array([1])
     probs = np.array(likelies) * np.array(current_w)
     denom = sum(probs)
-    # print("denom", denom)
     return probs / denom
 
 
@@ -411,18 +352,19 @@ def resampling(M, current_w, old_ensemble):
     """
     sampling = np.random.multinomial(M, current_w)
     new_ensemble = []
-    # print("tot weights", sum(weights))
-    # print("resampling..")
     for idx, amnt in enumerate(sampling):
         if amnt:
             new_ensemble += [old_ensemble[idx] for i in range(amnt)]
-    # print(new_ensemble)
     return new_ensemble
 
 
 # need N_obs, dt_out, M, ICs, dt, dt_sim,
 # SIR run
 def SIR(M):
+    """
+    Run the SIR filter, using x_obs with underlying zref.
+    The ikelihood used will be likelihoodfn
+    """
     observations = x_obs(N_obs, dt_out, zref)
 
     initial_samples = init_ensemble(M, ICs, 0.1)
@@ -433,9 +375,9 @@ def SIR(M):
     ensemble_paths = [[i] for i in initial_samples]
     # ensemble paths will look as below
     # ensemble_paths = [
-    #   [[1st coord of path], [2nd coord], ..],  # particle one
+    #   [[1st coord of 1st path], [2nd coord], ..],  # particle one
     #   ...
-    #   [[1st coord of path], [2nd coord], ..]  # particle M
+    #   [[1st coord of Mth path], [2nd coord], ..]  # particle M
     # ]
     eff_M_hist = [M_eff(weights)]  # history of effective sample size to graph
 
@@ -457,16 +399,53 @@ def SIR(M):
 
         # effective sample size
         eff_M_hist.append(M_eff(weights))
-        # print("eff M = ", eff_M_hist[-1])
 
         # resampling
         if eff_M_hist[-1] < M/2:
-            # print(observing)
             current_ensemble = resampling(M, weights, current_ensemble)
             weights = [1/M for i in range(M)]
 
     return eff_M_hist, ensemble_paths, observations
 
+
+# plot the reference model/surrogate physical process
+"""
+t = 10
+z = zref(t)
+fig = plt.figure()
+ax = plt.axes(projection='3d')
+z1 = [i[0] for i in z]
+z2 = [i[1] for i in z]
+z3 = [i[2] for i in z]
+ax.plot(z1, z2, z3)
+plt.show()
+"""
+
+# plot observations of x coordinates
+"""
+trial = x_obs(N_obs, dt_out, zref)
+t = np.arange(0,dt_out*200,dt_out)
+plt.figure()
+plt.plot(t, trial, 'x')
+plt.show()
+"""
+
+# SDE plot
+"""
+t = int(20/0.001)
+zs = sim_z(t, ICs)
+x_sim = first_comp(zs)
+t_list = np.arange(0, t+dt_sim, dt_sim)
+plt.figure()
+#plt.plot(t_list, x_sim, 'x')
+#plt.show()
+ax = plt.axes(projection='3d')
+z1 = [i[0] for i in zs]
+z2 = [i[1] for i in zs]
+z3 = [i[2] for i in zs]
+ax.plot(z1, z2, z3)
+plt.show()
+"""
 
 # effective sample size plot
 """
@@ -474,8 +453,6 @@ trial = []
 M_vals = [30, 100, 300]
 for value in M_vals:
     trial.append(SIR(value)[0])
-print(len(trial[0]))
-print(N_obs)
 plt.figure()
 t_ls = np.linspace(0, N_obs*dt_out, len(trial[0]))
 for runs in trial:
@@ -499,11 +476,10 @@ plt.show()
 # RMSE
 def mean_y(enpaths, k, axis):
     yi_tk = [path[k][axis] for path in enpaths]
-    # print(len(yi_tk))
     return np.mean(yi_tk)
 
 
-def RMSE(enpaths, obs, axis):
+def RMSE2(enpaths, obs, axis):
     """
     Parameters:
     enpaths: list of list of coords
@@ -513,51 +489,55 @@ def RMSE(enpaths, obs, axis):
     axis: 0, 1, or 2
         x, y or z coordinate to be calculated
     """
-    total = 0
-    for k in range(len(obs)):
-        ym = mean_y(enpaths, k, axis)
-        total += (ym - obs[k]) ** 2
-    return np.sqrt(total / len(obs))
+    x_sim = [mean_y(enpaths, k, axis) for k in range(1, N_obs+1)]
+    return np.sqrt(np.mean(np.array(x_sim - obs) ** 2))
 
 
-def rmse(M, enpath, obs):
-    diff = np.zeros(M)
-    for i in range(M):
-        for j in range(N_obs):
-            diff[i] += abs(obs[j] - enpath[i][j][0])**2
-    rms = np.sqrt((1/M)*diff)
-    return np.mean(rms)
+N_obs = 400
+zs = zref(N_obs * dt_out)
+z_obs = np.array([i[2] for i in zs][50::50])
+x_obs1 = np.array([i[0] for i in zs][50::50])
+t_list = np.linspace(0, dt_out * N_obs, N_obs + 1)
+observe = x_obs(N_obs, dt_out, zref)
+plt.figure(2)
+plt.plot(t_list[1:], observe, '-k', label='x_obs')
 
-
-def RMSE2(enpaths, obs, axis):
-    x_sim = [mean_y(enpaths, k, axis) for k in range(0, N_obs+1)]
-    return np.sqrt(np.mean(np.array(x_sim[1:] - obs) ** 2))
-
-"""
-N_obs = 200
-plt.figure()
-for j in range(3):
+for j in range(1):  # number of runs
+    plt.figure(1)
     storex = []
-    # storey = []
-    # storez = []
-    M_vals = [25] + [i*50 for i in range(1,7)]
+    storex2 = []
+    storez = []
+    M_vals = [25] + [i*50 for i in range(1, 8)]
     for i in M_vals:
         useless, ep, ob = SIR(i)
         storex.append(RMSE2(ep, ob, 0))
-        #storex.append(RMSE(ep, ob, 0))
-        #storey.append(RMSE(ep, ob, 1))
-        #storez.append(RMSE(ep, ob, 2))
+        storez.append(RMSE2(ep, z_obs, 2))
 
-    plt.plot(M_vals, storex, '-o')
-    #plt.plot(M_vals, storey, '-.')
-    #plt.plot(M_vals, storez, '-x')
+        plt.figure(2)
+        x_sim = [mean_y(ep, k, 0) for k in range(0, N_obs+1)]
+        plt.plot(t_list, x_sim, label=f"M={i}")
+        # observe = ob
+
+    plt.figure(1)
+    plt.plot(M_vals, storex, '-x', label='x-coordinate')
+    plt.plot(M_vals, storez, '-o', label='z-coordinate')
+
+plt.figure(1)
 plt.xlabel('sample size M')
 plt.ylabel('time averaged RMSE of x coordinates')
+plt.legend()
+
+plt.figure(2)
+# plt.plot(t_list[1:], observe, '-k', label='x_obs')
+# for paths in enpath:
+#    plt.plot(t_list, [i[0] for i in paths], '-c')
+plt.xlabel("time")
+plt.ylabel("x coordinates")
+plt.legend()
 plt.show()
-"""
 
 
-# deterministic vs stochastic model
+# deterministic vs stochastic model plot
 def z_det(t, ICs, dt):
     z_new = ICs
     points = [ICs]
@@ -636,6 +616,4 @@ plt.xlabel("time")
 plt.ylabel("x coordinates")
 plt.legend()
 plt.show()
-print('M=', 30)
-print(np.sqrt(np.mean(x_sim[1:] - observe)))
 """
