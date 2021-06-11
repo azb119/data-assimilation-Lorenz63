@@ -493,6 +493,7 @@ def RMSE2(enpaths, obs, axis):
     return np.sqrt(np.mean(np.array(x_sim - obs) ** 2))
 
 
+"""
 N_obs = 400
 zs = zref(N_obs * dt_out)
 z_obs = np.array([i[2] for i in zs][50::50])
@@ -535,6 +536,7 @@ plt.xlabel("time")
 plt.ylabel("x coordinates")
 plt.legend()
 plt.show()
+"""
 
 
 # deterministic vs stochastic model plot
@@ -602,18 +604,17 @@ plt.show()
 """
 
 # sim_z vs x_obs
-"""
-N_obs = 80
-useless, enpath, observe = SIR(30)
+
+N_obs = 400
+useless, enpath, observe = SIR(100)
 t_list = np.linspace(0, dt_out * N_obs, N_obs + 1)
 x_sim = [mean_y(enpath, k, 0) for k in range(0, N_obs+1)]
 plt.figure()
 plt.plot(t_list[1:], observe, '-k', label = 'x_obs')
-plt.plot(t_list, x_sim, '-c', label = 'particle mean')
-#for paths in enpath:
+plt.plot(t_list, x_sim, '--c', label = 'particle mean')
+# for paths in enpath:
 #   plt.plot(t_list, [i[0] for i in paths], '-c')
 plt.xlabel("time")
 plt.ylabel("x coordinates")
 plt.legend()
 plt.show()
-"""
