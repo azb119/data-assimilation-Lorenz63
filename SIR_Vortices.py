@@ -58,7 +58,6 @@ def v_det(t, ICs, dt):
     return points
 
 
-
 """
 t=2
 v=v_det(t,ICs,dt, gamma)
