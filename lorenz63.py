@@ -1,7 +1,7 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from numpy.core import multiarray
-from mpl_toolkits import mplot3d
+import matplotlib.pyplot as plt  # noqa F401
+from numpy.core import multiarray  # noqa F401
+from mpl_toolkits import mplot3d  # noqa F401
 
 # Section 2.1 & 2.2
 # surrogate physical process: Lorenz 63 model
@@ -71,7 +71,7 @@ def tent_fn(a, gi):
 
 
 # df for lorenz 63 reference
-df = lambda last_z, last_g: np.array(f(last_z) + g(a, last_g))
+df = lambda last_z, last_g: np.array(f(last_z) + g(a, last_g))  # noqa E731
 
 
 def forward_e(df, dt, *last_points):
@@ -249,7 +249,6 @@ def stochastic_g():
     sigma = np.sqrt(0.0838)
     vals = np.random.normal(0, sigma, 3)
     return a * vals
-print(stochastic_g())
 
 
 def sde_df(last_z):
@@ -400,18 +399,18 @@ def SIS(M):
     Parameters:
     M: int
         sample size
-    
+
     Return: 3 tuple of lists
         effective sample size for every time step,
         paths of every ensemble member,
         weights of every ensemble for every time step
     """
     observations = x_obs(N_obs, dt_out, zref)
-    ensemble_weights =np.zeros((M,N_obs+1))
+    ensemble_weights = np.zeros((M, N_obs+1))
     initial_samples = init_ensemble(M, ICs, 0.1)
     initial_w = [1/M for i in range(M)]
     weights = initial_w.copy()
-    ensemble_weights[:,0]=weights.copy()
+    ensemble_weights[:, 0] = weights.copy()
     current_ensemble = initial_samples.copy()
     ensemble_paths = [[i] for i in initial_samples]
     # ensemble paths will look as below
@@ -437,7 +436,7 @@ def SIS(M):
 
         # new weights
         weights = next_w(weights, observations[observing], current_ensemble)
-        ensemble_weights[:,observing+1]= np.transpose(weights.copy())
+        ensemble_weights[:, observing+1] = np.transpose(weights.copy())
 
         # effective sample size
         eff_M_hist.append(M_eff(weights))
