@@ -1,5 +1,5 @@
 # Data Assimilation using Sequential Importance Resampling
-These are code used in the development of our 2021 Group Research Project. 
+These are code used in the development of our 2021 MATH50002 Group Research Project. 
 
 By:
 N. Barykin Pankevich, E. Gibson, G. Luo, E. Prideaux-Ghee, Z. Salleh
