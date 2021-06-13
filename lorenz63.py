@@ -481,11 +481,9 @@ def SIR(M):
 
         # effective sample size
         eff_M_hist.append(M_eff(weights))
-        # print("eff M = ", eff_M_hist[-1])
 
         # resampling
         if eff_M_hist[-1] < M/2:
-            # print(observing)
             current_ensemble = resampling(M, weights, current_ensemble)
             weights = [1/M for i in range(M)]
 
