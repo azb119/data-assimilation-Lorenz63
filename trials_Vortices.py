@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-ICs =  np.array([[1.4,0], [-0.5,0.8],[-1,-2.1]])
+ICs = np.array([[1.4,0], [-0.5,0.8],[-1,-2.1]])
 gamma = [12, 5,6]
 dt = 0.001
 a = 1/(10*np.sqrt(dt))
@@ -45,7 +45,7 @@ def forward_e(df, dt, *last_points):
     Return: float
         next point for ODE by forward euler
     """
-    return np.array(last_points[0] + dt * df(*last_points))
+    return np.array(last_points[0] + dt * 1.1* df(*last_points))
 
 
 # without g
@@ -59,8 +59,8 @@ def v_det(t, ICs, dt):
 
 
 """
-t=2
-v=v_det(t,ICs,dt, gamma)
+t=10
+v=v_det(t,ICs,dt)
 x1 = [i[0][0] for i in v]
 y1 = [i[0][1] for i in v]
 x2 = [i[1][0] for i in v]
@@ -72,8 +72,12 @@ plt.figure()
 plt.plot(x1,y1)
 plt.plot(x2,y2)
 plt.plot(x3,y3)
+plt.xlabel('x')
+plt.ylabel('y')
+plt.plot([ics[0] for ics in ICs], [ics[1] for ics in ICs], 'ob')
 plt.show()
 """
+
 
 # with g
 def tent_fn(a, gi):
@@ -138,9 +142,8 @@ def vref(t):
         gs.append(g(a, lastg))
     return out
 
-
 """
-t=2
+t=10
 v=vref(t)
 x1 = [i[0][0] for i in v]
 y1 = [i[0][1] for i in v]
@@ -156,7 +159,6 @@ plt.plot(x2,y2)
 plt.plot(x3,y3)
 plt.show()
 """
-
 
 # partial obs
 def first_comp(v):
@@ -253,10 +255,10 @@ def v1_obs(N_obs, dt_out, zref):
     """
     c = 20
     err_ls = errorsum(c, N_obs)
-    
+
     vreal = vref(N_obs * dt_out)
     xreal = np.array(first_comp(vreal))
-    xreal = xreal[350::350]
+    xreal = xreal[250::250]
 
     return xreal + np.transpose(err_ls)
 
@@ -352,7 +354,7 @@ def init_ensemble(M, mu, sig):
     vals = []
     for mui in mu:
         vals.append(np.random.normal(mui, sig, (M,2)))
-        
+
     coords = [[vals[0][i], vals[1][i], vals[2][i]] for i in range(M)]
     return coords
 # print(init_ensemble(4, ICs, 0.1),np.shape(init_ensemble(4, ICs, 0.1)))
@@ -468,3 +470,42 @@ def SIR(M):
             weights = [1/M for i in range(M)]
 
     return eff_M_hist, ensemble_paths, observations
+
+dt_out=250*dt
+N_obs=200
+v1=[item[0] for item in vref(dt_out*N_obs)]
+v1s=v1[slice(250,len(v1),250)]
+xs= [item[0] for item in v1s]
+ys =[item[1] for item in v1s]
+t = dt_out*len(xs)
+xobs = [item[0] for item in v1_obs(N_obs, dt_out, vref)]
+yobs = [item[1] for item in v1_obs(N_obs, dt_out, vref)]
+tlist = np.arange(0,dt_out*len(xs),dt_out)
+
+v1_ref = [[item[0][0] for item in vref(t)][0::250],[item[0][1] for item in vref(t)][0::250]]
+
+plt.figure(figsize=(11,4))
+plt.plot(tlist, xobs, 'x', label='x_obs')
+plt.plot(np.arange(0,(len(v1_ref[0])-0.5)*dt_out,dt_out), v1_ref[0], marker="x",label ='reference')
+plt.xlabel("time")
+plt.legend()
+plt.ylabel("x")
+
+plt.figure(figsize=(11,4))
+plt.plot(tlist,yobs,'x', label='y_obs') 
+y1ref, = plt.plot(np.arange(0,(len(v1_ref[1])-0.5)*dt_out,dt_out), v1_ref[1], marker="x",label='reference')
+plt.xlabel("time")
+plt.ylabel("y")
+plt.legend()
+
+plt.figure(figsize=(11,4))
+plt.plot(tlist,np.array(xs)-np.array(xobs)) 
+plt.xlabel("time")
+plt.ylabel("error in x coord of the observations");
+
+plt.figure(figsize=(11,4))
+plt.plot(tlist,np.array(ys)-np.array(yobs)) 
+plt.xlabel("time")
+plt.ylabel("error in y coord of the observations");
+
+plt.show()
