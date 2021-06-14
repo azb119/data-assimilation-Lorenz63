@@ -4,6 +4,32 @@ from scipy.integrate import solve_ivp
 import numpy as np
 from scipy.interpolate import UnivariateSpline
 
+# Figure 19
+t = 30
+res = 10000
+tarr = np.linspace(0,t,res)
+a = solve_ivp(rhs, (0,t), v, t_eval=tarr)
+plt.figure()
+
+for i in  range(0, 1, 2):
+    plt.scatter(a.y[i], a.y[i+1], linewidth=0.4, c=tarr , cmap=plt.cm.viridis , marker=".", s=6)
+plt.colorbar(plt.scatter(a.y[0], a.y[1], linewidth=0.4, c=tarr ,cmap=plt.cm.viridis , marker=".",s=6), shrink=0.8, label='t')
+
+plt.axis('equal')
+plt.xlabel("x")
+plt.ylabel("y")
+
+# init_conditions from gaussian_dist
+t_course = np.linspace(0,t,int(res/100))
+for i in range(6):
+    init_dist = np.random.default_rng().normal(0,0.05,6)
+    init_dist[2:] = 0
+    v1 = v+init_dist
+    b = solve_ivp(rhs, (0,t), v1, t_eval=tarr)
+    for i in range(0,1, 2):
+        plt.plot(b.y[i], b.y[i+1], linewidth=0.6)
+plt.show()
+
 # Figure 21 & 22
 # compare reference and mechanistic models
 t=20

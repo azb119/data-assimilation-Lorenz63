@@ -224,6 +224,33 @@ plt.legend()
 
 plt.show()
 
+# Figure 9
+# stochastic effect of model
+t = np.arange(0,6+dt,dt)
+
+plt.figure(1, figsize=(14,5))
+plt.ylabel('x')
+plt.xlabel('t')
+plt.figure(2, figsize=(14,5))
+plt.ylabel('y')
+plt.xlabel('t')
+plt.figure(3, figsize=(14,5))
+plt.ylabel('z')
+plt.xlabel('t')
+
+for i in range(5):
+    zs = sim_z(int(6/dt), ICs)
+    plt.figure(1)
+    xfs = [i[0] for i in zs]
+    plt.plot(t, xfs)
+    plt.figure(2)
+    yfs = [i[1] for i in zs]
+    plt.plot(t, yfs)
+    plt.figure(3)
+    zfs = [i[2] for i in zs]
+    plt.plot(t, zfs)
+plt.show()
+
 # Figure 10
 # plotting  x trajectories for different SIS sample sizes
 N_obs = 80

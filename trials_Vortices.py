@@ -484,28 +484,25 @@ tlist = np.arange(0,dt_out*len(xs),dt_out)
 
 v1_ref = [[item[0][0] for item in vref(t)][0::250],[item[0][1] for item in vref(t)][0::250]]
 
-plt.figure(figsize=(11,4))
-plt.plot(tlist, xobs, 'x', label='x_obs')
-plt.plot(np.arange(0,(len(v1_ref[0])-0.5)*dt_out,dt_out), v1_ref[0], marker="x",label ='reference')
-plt.xlabel("time")
-plt.legend()
-plt.ylabel("x")
+fig, axs = plt.subplots(4)
+# plt.figure(figsize=(11,4))
+axs[0].plot(tlist, xobs, 'x', label='x_obs')
+axs[0].plot(np.arange(0,(len(v1_ref[0])-0.5)*dt_out,dt_out), v1_ref[0], marker="x",label ='reference')
+axs[0].set(xlabel='time', ylabel='x')
+axs[0].legend()
 
-plt.figure(figsize=(11,4))
-plt.plot(tlist,yobs,'x', label='y_obs') 
-y1ref, = plt.plot(np.arange(0,(len(v1_ref[1])-0.5)*dt_out,dt_out), v1_ref[1], marker="x",label='reference')
-plt.xlabel("time")
-plt.ylabel("y")
-plt.legend()
+# plt.figure(figsize=(11,4))
+axs[1].plot(tlist,yobs,'x', label='y_obs') 
+axs[1].plot(np.arange(0,(len(v1_ref[1])-0.5)*dt_out,dt_out), v1_ref[1], marker="x",label='reference')
+axs[1].set(xlabel='time', ylabel='y')
+axs[1].legend()
 
-plt.figure(figsize=(11,4))
-plt.plot(tlist,np.array(xs)-np.array(xobs)) 
-plt.xlabel("time")
-plt.ylabel("error in x coord of the observations");
+# axs[2].figure(figsize=(11,4))
+axs[2].plot(tlist,np.array(xs)-np.array(xobs)) 
+axs[2].set(xlabel='time', ylabel='error in x coord of the observation')
 
-plt.figure(figsize=(11,4))
-plt.plot(tlist,np.array(ys)-np.array(yobs)) 
-plt.xlabel("time")
-plt.ylabel("error in y coord of the observations");
+# axs[3].figure(figsize=(11,4))
+axs[3].plot(tlist,np.array(ys)-np.array(yobs)) 
+axs[3].set(xlabel='time', ylabel='error in y coord of the observation')
 
 plt.show()

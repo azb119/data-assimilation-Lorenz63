@@ -2,6 +2,22 @@ from scipy.integrate import solve_ivp  # noqa F401
 import numpy as np
 from numpy import linalg as LA
 
+
+# Section 4.1
+# first implementation of ODEs
+def rhs(s, v):
+    pairs = [v[i:i+2] for i in range(0, len(v), 2)]
+    x = v[::2]
+    y = v[1::2]
+
+    # implement ODE for each pair x_alpha, y_alpha
+    fn = [[
+        -1/(2*np.pi)*sum(gamma[k]*(y[i]-y[k])/((x[i]-x[k])**2+(y[i]-y[k])**2) for k in range(len(x)) if k!=i),  # noqa E501
+        1/(2*np.pi)*sum(gamma[k]*(x[i]-x[k])/((x[i]-x[k])**2+(y[i]-y[k])**2) for k in range(len(x)) if k!=i)  # noqa E501
+        ] for i in range(len(pairs))]
+    return [item for sub in fn for item in sub]
+
+
 # Section 4.2
 # mechanistic model
 ICs = np.array([[1.4, 0], [-0.5, 0.8], [-1, -2.1]])  # intial points
